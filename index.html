@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neon Tic-Tac-Toe Multiplayer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --glow-pink: #ff00ff;
+            --glow-cyan: #00ffff;
+            --bg-color: #1a0f35;
+            --grid-line-color: #9f00ff;
+            --font-family: 'Orbitron', sans-serif;
+        }
+        body, html {
+            margin: 0; padding: 0; height: 100%; width: 100%;
+            display: flex; justify-content: center; align-items: center;
+            font-family: var(--font-family); background-color: var(--bg-color);
+            color: white; overflow: hidden;
+        }
+        .container {
+            text-align: center; padding: 20px; width: 100%; max-width: 450px;
+            display: flex; flex-direction: column; align-items: center;
+            height: 100%; box-sizing: border-box;
+        }
+        #startScreen { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; }
+        #gameScreen { width: 100%; display: flex; flex-direction: column; align-items: center; height: 100%; }
+        .hidden { display: none !important; }
+
+        /* Score Panel */
+        .score-panel { display: flex; justify-content: space-around; align-items: center; width: 100%; margin-bottom: 15px; }
+        .player-box { border: 2px solid; border-radius: 15px; padding: 5px 15px; width: 120px; text-align: center; }
+        .player-box.o-box { border-color: var(--glow-pink); box-shadow: 0 0 10px var(--glow-pink), 0 0 20px var(--glow-pink) inset; }
+        .player-box.x-box { border-color: var(--glow-cyan); box-shadow: 0 0 10px var(--glow-cyan), 0 0 20px var(--glow-cyan) inset; }
+        .player-box .symbol { font-size: 2em; font-weight: bold; line-height: 1; }
+        .player-box .label { font-size: 0.8em; margin-top: 5px; }
+        .score { font-size: 2em; font-weight: bold; color: white; text-shadow: 0 0 5px white; }
+        
+        /* Game Status & Board */
+        #status { font-size: 1.1em; min-height: 25px; margin-bottom: 15px; font-weight: bold; letter-spacing: 1px; color: white; }
+        #gameBoardContainer { position: relative; width: 90vw; max-width: 360px; aspect-ratio: 1 / 1; }
+        #gameBoard { display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); width: 100%; height: 100%; border: 3px solid var(--grid-line-color); box-shadow: 0 0 15px var(--grid-line-color); border-radius: 10px; background-color: rgba(0,0,0,0.2); }
+        .cell { width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; font-size: 3.5em; font-weight: bold; cursor: pointer; border-right: 3px solid var(--grid-line-color); border-bottom: 3px solid var(--grid-line-color); box-sizing: border-box; }
+        .cell:nth-child(3n) { border-right: none; }
+        .cell:nth-child(n+7) { border-bottom: none; }
+        .cell.x { color: var(--glow-cyan); text-shadow: 0 0 15px var(--glow-cyan); }
+        .cell.o { color: var(--glow-pink); text-shadow: 0 0 15px var(--glow-pink); }
+        #winningLineCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+
+        /* Buttons */
+        button { padding: 12px 25px; font-size: 1.1em; color: white; background: linear-gradient(45deg, var(--glow-pink), var(--glow-cyan)); border: none; border-radius: 10px; cursor: pointer; font-family: var(--font-family); font-weight: bold; transition: transform 0.2s, box-shadow 0.2s; box-shadow: 0 0 15px rgba(255, 0, 255, 0.5); }
+        button:hover { transform: scale(1.05); box-shadow: 0 0 25px rgba(0, 255, 255, 0.5); }
+        button:disabled { background: #555; cursor: not-allowed; box-shadow: none; transform: none; }
+        #postGameControls { margin-top: 20px; display: flex; gap: 20px; }
+
+        .rematch-requested { animation: glow-pulse 1.5s infinite; }
+        @keyframes glow-pulse {
+            0%   { box-shadow: 0 0 15px rgba(255, 0, 255, 0.5); }
+            50%  { box-shadow: 0 0 35px var(--glow-cyan), 0 0 20px var(--glow-pink); transform: scale(1.08); }
+            100% { box-shadow: 0 0 15px rgba(255, 0, 255, 0.5); }
+        }
+
+        /* Chat System */
+        #chatContainer { margin-top: 20px; width: 100%; flex-grow: 1; display: flex; flex-direction: column; min-height: 0; }
+        #chatBox { border: 2px solid var(--grid-line-color); border-radius: 10px; padding: 10px; overflow-y: auto; flex-grow: 1; background-color: rgba(0,0,0,0.3); }
+        .chat-message { margin-bottom: 8px; padding: 5px 10px; border-radius: 8px; max-width: 80%; word-wrap: break-word; }
+        .my-message { background-color: var(--glow-pink); color: white; margin-left: auto; text-align: right; }
+        .opponent-message { background-color: var(--glow-cyan); color: #1a0f35; margin-right: auto; text-align: left; }
+        #chatInputContainer { display: flex; margin-top: 10px; }
+        #chatInput { flex-grow: 1; padding: 10px; border: 2px solid var(--grid-line-color); background: transparent; color: white; border-radius: 8px 0 0 8px; font-family: sans-serif; }
+        #sendChatBtn { padding: 10px 15px; border-radius: 0 8px 8px 0; font-size: 1em; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Start Screen -->
+        <div id="startScreen"> <button id="startGameBtn">Start Game</button> </div>
+
+        <!-- Game Screen -->
+        <div id="gameScreen" class="hidden">
+            <div class="score-panel">
+                <div class="player-box o-box"><div class="symbol">O</div><div class="label">PLAYER O</div></div>
+                <div class="score">VS</div>
+                <div class="player-box x-box"><div class="symbol">X</div><div class="label">PLAYER X</div></div>
+            </div>
+            <div id="status">Connecting...</div>
+            <div id="gameBoardContainer">
+                <div id="gameBoard"></div>
+                <canvas id="winningLineCanvas"></canvas>
+            </div>
+            <div id="postGameControls" class="hidden">
+                <button id="playAgainBtn">Play Again</button>
+                <button id="endGameBtn">End Game</button>
+            </div>
+            <div id="chatContainer">
+                <div id="chatBox"></div>
+                <div id="chatInputContainer">
+                    <input type="text" id="chatInput" placeholder="Type a message...">
+                    <button id="sendChatBtn">Send</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK Scripts -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+
+    <script>
+        //🔥🔥 <<< YAHAN APNA FIREBASE CONFIG PASTE KAREN 🔥🔥>>>
+        const firebaseConfig = {
+  apiKey: "AIzaSyAuBKfhQQIfACpV_AEUERbed8ofFpEoJaY",
+  authDomain: "tic-tac-182f2.firebaseapp.com",
+  databaseURL: "https://tic-tac-182f2-default-rtdb.firebaseio.com",
+  projectId: "tic-tac-182f2",
+  storageBucket: "tic-tac-182f2.firebasestorage.app",
+  messagingSenderId: "27441137519",
+  appId: "1:27441137519:web:fb3c807a05e4f2ce190a9a"
+};
+
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+
+        const startScreen = document.getElementById('startScreen'), gameScreen = document.getElementById('gameScreen');
+        const startGameBtn = document.getElementById('startGameBtn'), statusDiv = document.getElementById('status');
+        const gameBoardDiv = document.getElementById('gameBoard'), canvas = document.getElementById('winningLineCanvas'), ctx = canvas.getContext('2d');
+        const postGameControls = document.getElementById('postGameControls'), playAgainBtn = document.getElementById('playAgainBtn'), endGameBtn = document.getElementById('endGameBtn');
+        const chatBox = document.getElementById('chatBox'), chatInput = document.getElementById('chatInput'), sendChatBtn = document.getElementById('sendChatBtn');
+
+        let playerId = 'player_' + Date.now() + Math.floor(Math.random() * 1000);
+        let playerSymbol = null, gameId = null, gameListener = null;
+
+        startGameBtn.addEventListener('click', findOpponent);
+        playAgainBtn.addEventListener('click', handlePlayAgain);
+        endGameBtn.addEventListener('click', handleEndGame);
+        sendChatBtn.addEventListener('click', sendChatMessage);
+        chatInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') sendChatMessage(); });
+
+        function findOpponent() {
+            startGameBtn.disabled = true; startGameBtn.textContent = 'Searching...';
+            const waitingPlayersRef = database.ref('waitingPlayers'), myWaitingRef = waitingPlayersRef.child(playerId);
+            myWaitingRef.onDisconnect().remove();
+            waitingPlayersRef.transaction(currentWaitingPlayers => {
+                if (currentWaitingPlayers === null) return { [playerId]: true };
+                const opponentId = Object.keys(currentWaitingPlayers)[0];
+                if (opponentId === playerId) return;
+                delete currentWaitingPlayers[opponentId];
+                createNewGame(opponentId);
+                return currentWaitingPlayers;
+            }).then(result => { if (result.committed && result.snapshot.val() && result.snapshot.val()[playerId]) { myWaitingRef.set(true); waitForGameCreation(); } });
+        }
+        function waitForGameCreation() {
+            const gamesRef = database.ref('games');
+            gamesRef.on('child_added', snapshot => {
+                const game = snapshot.val();
+                if (game.playerX === playerId || game.playerO === playerId) {
+                    gameId = snapshot.key; playerSymbol = (game.playerX === playerId) ? 'X' : 'O';
+                    database.ref(`waitingPlayers/${playerId}`).remove();
+                    database.ref(`waitingPlayers/${playerId}`).onDisconnect().cancel();
+                    showGameScreen(); listenToGameUpdates(); gamesRef.off();
+                }
+            });
+        }
+        function createNewGame(opponentId) {
+            gameId = 'game_' + Date.now(); playerSymbol = 'O'; 
+            const gameData = { playerX: opponentId, playerO: playerId, board: Array(9).fill(""), turn: 'X', status: 'ongoing' };
+            database.ref('games/' + gameId).set(gameData).then(() => { showGameScreen(); listenToGameUpdates(); });
+        }
+        function listenToGameUpdates() {
+            const gameRef = database.ref('games/' + gameId);
+            gameListener = gameRef.on('value', snapshot => {
+                const gameData = snapshot.val();
+                if (!gameData) { alert("Game session ended."); resetToStartScreen(); return; }
+                updateBoardUI(gameData);
+                updateStatusAndControls(gameData);
+                updateChatUI(gameData.chat);
+                if (gameData.rematch) handleRematchStatus(gameData.rematch);
+            });
+        }
+        function showGameScreen() {
+            startScreen.classList.add('hidden'); gameScreen.classList.remove('hidden');
+            gameBoardDiv.innerHTML = '';
+            for (let i = 0; i < 9; i++) {
+                const cellDiv = document.createElement('div');
+                cellDiv.classList.add('cell'); cellDiv.dataset.index = i;
+                gameBoardDiv.appendChild(cellDiv);
+            }
+        }
+        function updateBoardUI(gameData) {
+            gameData.board.forEach((cell, index) => {
+                const cellDiv = gameBoardDiv.children[index];
+                if (cellDiv.textContent !== cell) {
+                    cellDiv.textContent = cell; cellDiv.className = 'cell';
+                    if (cell === 'X') cellDiv.classList.add('x');
+                    if (cell === 'O') cellDiv.classList.add('o');
+                }
+                cellDiv.removeEventListener('click', onCellClick);
+                if (gameData.turn === playerSymbol && cell === '' && gameData.status === 'ongoing') {
+                    cellDiv.addEventListener('click', onCellClick); cellDiv.style.cursor = 'pointer';
+                } else { cellDiv.style.cursor = 'not-allowed'; }
+            });
+        }
+        function updateStatusAndControls(gameData) {
+            const winnerInfo = checkWinner(gameData.board);
+            if (winnerInfo) {
+                const winnerSymbol = gameData.board[winnerInfo.combo[0]];
+                statusDiv.textContent = winnerSymbol === playerSymbol ? "YOU WIN!" : "YOU LOSE!";
+                drawWinningLine(winnerInfo.combo); showPostGameControls();
+            } else if (gameData.status === 'draw') {
+                statusDiv.textContent = "IT'S A DRAW!"; showPostGameControls();
+            } else { statusDiv.textContent = (gameData.turn === playerSymbol) ? "YOUR TURN" : "OPPONENT'S TURN"; }
+        }
+        function updateChatUI(chatData) {
+            if (!chatData) return;
+            chatBox.innerHTML = '';
+            Object.values(chatData).forEach(msg => {
+                const msgDiv = document.createElement('div');
+                msgDiv.classList.add('chat-message'); msgDiv.textContent = msg.text;
+                msgDiv.classList.add(msg.sender === playerSymbol ? 'my-message' : 'opponent-message');
+                chatBox.appendChild(msgDiv);
+            });
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+        function onCellClick(event) {
+            const index = event.target.dataset.index;
+            const gameRef = database.ref('games/' + gameId);
+            gameRef.transaction(gameData => {
+                if (gameData && gameData.status === 'ongoing' && gameData.turn === playerSymbol && gameData.board[index] === '') {
+                    gameData.board[index] = playerSymbol;
+                    const winnerInfo = checkWinner(gameData.board);
+                    if (winnerInfo) gameData.status = `${gameData.board[winnerInfo.combo[0]]} wins`;
+                    else if (!gameData.board.includes('')) gameData.status = 'draw';
+                    else gameData.turn = (gameData.turn === 'X') ? 'O' : 'X';
+                }
+                return gameData;
+            });
+        }
+        function checkWinner(board) {
+            const combos = [ [0,1,2], [3,4,5], [6,7,8], [0,3,6], [1,4,7], [2,5,8], [0,4,8], [2,4,6] ];
+            for (const combo of combos) { if (board[combo[0]] && board[combo[0]] === board[combo[1]] && board[combo[0]] === board[combo[2]]) return { combo }; }
+            return null;
+        }
+
+        // --- NAYA CHANGE: NEON WINNING LINE ---
+        function drawWinningLine(combo) {
+            const boardSize = gameBoardDiv.offsetWidth;
+            canvas.width = boardSize;
+            canvas.height = boardSize;
+
+            const winnerSymbol = gameBoardDiv.children[combo[0]].textContent;
+            const color = (winnerSymbol === 'X') ? 'var(--glow-cyan)' : 'var(--glow-pink)';
+            
+            const cellSize = boardSize / 3;
+            const halfCell = cellSize / 2;
+            
+            const startCell = combo[0];
+            const endCell = combo[2];
+            const startX = (startCell % 3) * cellSize + halfCell;
+            const startY = Math.floor(startCell / 3) * cellSize + halfCell;
+            const endX = (endCell % 3) * cellSize + halfCell;
+            const endY = Math.floor(endCell / 3) * cellSize + halfCell;
+            
+            ctx.lineCap = 'round';
+
+            // Layer 1: Outer glow
+            ctx.beginPath();
+            ctx.moveTo(startX, startY);
+            ctx.lineTo(endX, endY);
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 15;
+            ctx.shadowColor = color;
+            ctx.shadowBlur = 20;
+            ctx.stroke();
+
+            // Layer 2: Inner glow
+            ctx.beginPath();
+            ctx.moveTo(startX, startY);
+            ctx.lineTo(endX, endY);
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 8;
+            ctx.shadowBlur = 10;
+            ctx.stroke();
+
+            // Layer 3: Core white line
+            ctx.beginPath();
+            ctx.moveTo(startX, startY);
+            ctx.lineTo(endX, endY);
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 3;
+            ctx.shadowBlur = 0; // No shadow for the core
+            ctx.stroke();
+        }
+
+        function showPostGameControls() {
+            postGameControls.classList.remove('hidden'); playAgainBtn.disabled = false; playAgainBtn.textContent = 'Play Again';
+        }
+        function handlePlayAgain() {
+            playAgainBtn.disabled = true; playAgainBtn.textContent = 'Waiting...';
+            database.ref(`games/${gameId}/rematch/${playerId}`).set(true);
+        }
+        function handleRematchStatus(rematchData) {
+            const playerIds = Object.keys(rematchData);
+            if (playerIds.length === 2) {
+                restartGame();
+            } else if (playerIds.length === 1 && playerIds[0] !== playerId) {
+                statusDiv.textContent = "Opponent wants to play again!";
+                playAgainBtn.textContent = 'Accept Rematch?';
+                playAgainBtn.classList.add('rematch-requested');
+            }
+        }
+        function restartGame() {
+            const updates = { board: Array(9).fill(""), turn: 'X', status: 'ongoing', rematch: null };
+            database.ref('games/' + gameId).update(updates);
+            postGameControls.classList.add('hidden');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            playAgainBtn.classList.remove('rematch-requested');
+        }
+        function handleEndGame() { database.ref('games/' + gameId).remove(); }
+        function sendChatMessage() {
+            const messageText = chatInput.value.trim();
+            if (messageText && gameId) {
+                const message = { sender: playerSymbol, text: messageText, timestamp: firebase.database.ServerValue.TIMESTAMP };
+                database.ref(`games/${gameId}/chat`).push(message); chatInput.value = '';
+            }
+        }
+        function resetToStartScreen() {
+            if (gameListener) database.ref('games/' + gameId).off('value', gameListener);
+            gameId = null; playerSymbol = null; gameListener = null;
+            gameScreen.classList.add('hidden'); startScreen.classList.remove('hidden');
+            postGameControls.classList.add('hidden');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            chatBox.innerHTML = '';
+            startGameBtn.disabled = false; startGameBtn.textContent = 'Start Game';
+            playAgainBtn.classList.remove('rematch-requested');
+        }
+    </script>
+</body>
+</html>
